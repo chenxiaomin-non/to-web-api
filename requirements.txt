@@ -1,0 +1,8 @@
+fastapi[all]
+uvicorn[standard]
+requests
+beautifulsoup4
+nest-asyncio
+asyncio
+aiomysql
+guvicorn
