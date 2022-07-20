@@ -57,6 +57,18 @@ def validate_input(token_address: str):
 async def root():
     return {"message": "Hello World"}
 
+@app.options('/step1/{token_address}')
+async def step1_options(token_address: str):
+    return await step1(token_address)
+
+@app.options('/step2/{chain}/{token_address}')
+async def step2_options(chain: str, token_address: str):
+    return await step2(chain, token_address)
+
+@app.options('/step3/{chain}/{token_address}')
+async def step3_options(token_address: str, chain: str):
+    return await step3(chain, token_address)
+
 
 @app.get('/step1/{token_address}')
 async def step1(token_address: str):

@@ -4,5 +4,6 @@ requests
 beautifulsoup4
 nest-asyncio
 asyncio
+free-proxy
 aiomysql
 guvicorn
