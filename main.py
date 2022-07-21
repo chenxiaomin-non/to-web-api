@@ -1,7 +1,7 @@
 import datetime
 import json
 import os
-from fastapi import FastAPI
+from fastapi import FastAPI, Response
 import collect_info as ci
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -9,10 +9,7 @@ app = FastAPI()
 cwd = os.getcwd()
 
 origin = [
-    "http://localhost:3000",
-    "http://localhost:3001",
-    "http://localhost",
-    "https://localhost",
+    "*"
 ]
 
 app.add_middleware(
@@ -22,6 +19,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 def get_old_json_info(token_address: str, step: int):
     try:
@@ -57,21 +55,29 @@ def validate_input(token_address: str):
 async def root():
     return {"message": "Hello World"}
 
+
 @app.options('/step1/{token_address}')
-async def step1_options(token_address: str):
-    return await step1(token_address)
+async def step1_options(token_address: str, response: Response):
+    return await step1(token_address, response)
+
 
 @app.options('/step2/{chain}/{token_address}')
-async def step2_options(chain: str, token_address: str):
-    return await step2(chain, token_address)
+async def step2_options(chain: str, token_address: str, response: Response):
+    return await step2(chain, token_address, response)
+
 
 @app.options('/step3/{chain}/{token_address}')
-async def step3_options(token_address: str, chain: str):
-    return await step3(chain, token_address)
+async def step3_options(token_address: str, chain: str, response: Response):
+    return await step3(chain, token_address, response)
 
 
 @app.get('/step1/{token_address}')
-async def step1(token_address: str):
+async def step1(token_address: str, resp: Response = Response):
+    resp.headers['Access-Control-Allow-Origin'] = '*'
+    resp.headers['Access-Control-Allow-Methods'] = '*'
+    resp.headers['Access-Control-Allow-Headers'] = '*'
+    resp.headers['Access-Control-Allow-Credentials'] = 'true'
+
     if validate_input(token_address) is False:
         return {
             'status': 'error',
@@ -98,7 +104,12 @@ async def step1(token_address: str):
 
 
 @app.get("/step2/{chain}/{token_address}")
-async def step2(chain: str, token_address: str):
+async def step2(chain: str, token_address: str, resp: Response = Response):
+    resp.headers['Access-Control-Allow-Origin'] = '*'
+    resp.headers['Access-Control-Allow-Methods'] = '*'
+    resp.headers['Access-Control-Allow-Headers'] = '*'
+    resp.headers['Access-Control-Allow-Credentials'] = 'true'
+
     if validate_input(token_address) is False:
         return {
             'status': 'error',
@@ -108,7 +119,10 @@ async def step2(chain: str, token_address: str):
     data = get_old_json_info(token_address, 2)
     if data is not None:
         return data
-    data = ci.get_cryptorank_info(chain, token_address)
+    if chain == 'eth' or chain == 'bsc' or chain == 'polygon':
+        data = ci.get_cryptorank_info(chain, token_address)
+    if chain == "solana":
+        data = ci.get_solana_metadata(token_address)
 
     save_new_json_result(token_address, 2, {
         'token_address': token_address,
@@ -123,7 +137,12 @@ async def step2(chain: str, token_address: str):
 
 
 @app.get("/step3/{chain}/{token_address}")
-async def step3(chain: str, token_address: str):
+async def step3(chain: str, token_address: str, resp: Response):
+    resp.headers['Access-Control-Allow-Origin'] = '*'
+    resp.headers['Access-Control-Allow-Methods'] = '*'
+    resp.headers['Access-Control-Allow-Headers'] = '*'
+    resp.headers['Access-Control-Allow-Credentials'] = 'true'
+
     if validate_input(token_address) is False:
         return {
             'status': 'error',

@@ -2,6 +2,7 @@ import get_info.moralis as moral_scan
 import get_info.cryptorank as uni_scan
 import get_info.ethplorer as eth_scan
 import get_info.covalenthq as cova_scan
+import get_info.solscan as sol_scan
 import database as cmc_info
 import sys
 import os
@@ -9,6 +10,9 @@ sys.path.append(os.path.dirname(__file__))
 
 
 def get_moralis_info(token_address: str):
+    if len(token_address) != 42 or token_address[:2] != '0x':
+        return get_solana_metadata(token_address)
+
     result = moral_scan.get_moralis_metadata_erc20(token_address)
     cmc_result = cmc_info.get_database_info(token_address)
 
@@ -245,7 +249,7 @@ def get_ethplorer_info(token_address: str):
         return_obj["Price and Liquidity"] \
             .append(("price", "ERR", "This token has no value!"))
 
-    if result.get('price', None) is not None:
+    if result.get('price', None) is not None and result.get("price") is not False:
         if result['price'].get('diff', None) is None:
             return_obj["Price and Liquidity"] \
                 .append(("diff", "ERR", "This token has no price data!"))
@@ -287,8 +291,10 @@ def get_ethplorer_info(token_address: str):
 
 
 def get_other_of_eth_top_holder(token_address: str, chain: str):
-    result = cova_scan.get_top_100_balance(chain, token_address)
-
+    if chain == 'bsc' or chain == 'polygon':
+        result = cova_scan.get_top_100_balance(chain, token_address)
+    if chain == 'solana':
+        result = sol_scan.get_top_100_holder(token_address)
     return_obj = {
         "Basic Metadata": [],
         "Price and Liquidity": [],
@@ -340,3 +346,101 @@ def get_other_of_eth_top_holder(token_address: str, chain: str):
             .append(("bigHold", "OK", "A group of top holder hold less than 20% of total supply!"))
 
     return return_obj
+
+
+def get_solana_metadata(token_address):
+    data:dict = sol_scan.get_token_metadata(token_address)
+
+    return_obj = {
+        "Basic Metadata": [],
+        "Price and Liquidity": [],
+        "Transactions": []
+    }
+
+    if data.get("symbol", None) == None or data.get("symbol", None) == "":
+        return_obj["Basic Metadata"] \
+            .append(("symbol", "ERR", "This token has no symbol!"))
+    elif data.get("name", None) == None or data.get("name", None) == "":
+        return_obj["Basic Metadata"] \
+            .append(("name", "ERR", "This token has no name!"))
+    elif data.get("icon", None) == None or data.get("icon", None) == "":
+        return_obj["Basic Metadata"] \
+            .append(("icon", "ERR", "This token has no icon!"))
+    elif data.get("decimals", None) == None or data.get("decimals", None) == "":
+        return_obj["Basic Metadata"] \
+            .append(("decimals", "ERR", "This token has no decimals!"))
+    elif data.get("supply", None) == None or data.get("supply", None) == 0:
+        return_obj["Basic Metadata"] \
+            .append(("supply", "ERR", "This token has no supply!"))
+    else:
+        return_obj["Basic Metadata"] \
+            .append(("symbol", "OK", "This token has OK basic metadata!"))
+    
+    if data.get("website", None) == None or data.get("website", None) == "":
+        return_obj["Basic Metadata"] \
+            .append(("web", "ERR", "This token has no website for it!"))
+    else:
+        return_obj["Basic Metadata"] \
+            .append(("web", "OK", "This token has a website! But you also need to careful about it, it can be a scam website!"))
+    
+    if data.get("twitter", None) != None:
+        return_obj["Basic Metadata"] \
+            .append(("twitter", "OK", "This token has a Twitter account! You can go to %s to get more information about this!" % data.get("twitter", None)))
+
+    if data.get("facebook", None) != None:
+        return_obj["Basic Metadata"] \
+            .append(("facebook", "OK", "This token has a Facebook account! You can go to %s to get more information about this!" % data.get("facebook", None)))
+    
+    if data.get("telegram", None) != None:
+        return_obj["Basic Metadata"] \
+            .append(("telegram", "OK", "This token has a Telegram account! You can go to %s to get more information about this!" % data.get("telegram", None)))
+    
+    if data.get("github", None) != None:
+        return_obj["Basic Metadata"] \
+            .append(("github", "OK", "This token has a Github account! You can go to %s to get more information about this!" % data.get("github", None)))
+    
+    if data.get("tag", None) is None:
+        return_obj["Basic Metadata"] \
+            .append(("tag", "ERR", "This token has no more addition infomation to better describe about itself!"))
+    elif data.get("tag").get("description", None) is None or data.get("tag").get("description", None) == "":
+        return_obj["Basic Metadata"] \
+            .append(("tag", "ERR", "This token has no description about it! A good token usually has a nicely description about it!"))
+    else:
+        problematic_word = ['test', 'tested', 'testing', 'scam', 'scamed', 'for fun']
+        check_flag = True
+        for word in problematic_word:
+            if word in data.get("tag").get("description", None):
+                check_flag = False
+                return_obj["Basic Metadata"] \
+                    .append(("tag", "ERR", "This token has a description about it! But it contains a problematic word: %s!" % word))
+                break
+        if check_flag is True:
+            return_obj["Basic Metadata"] \
+                .append(("tag", "OK", "This token has a description about it! But it doesn't contain a problematic word!"))
+
+    if data.get("price", None) is None or data.get("price", None) < 0.00000000000001:
+        return_obj["Price and Liquidity"] \
+            .append(("price", "ERR", "This token has no price!"))
+    elif data.get("price") < 0.00001:
+        return_obj["Price and Liquidity"] \
+            .append(("price", "WARN", "This token has a really low price! It's probably a scam token!"))
+    else:
+        return_obj["Price and Liquidity"] \
+            .append(("price", "OK", "This token has value to exchange!"))
+    
+    if data.get("volume", None) is None or data.get("volume") < 1:
+        return_obj["Price and Liquidity"] \
+            .append(("volume", "ERR", "This token has no volume on market cap!"))
+    elif data.get("volume") < 10000:
+        return_obj["Price and Liquidity"] \
+            .append(("volume", "WARN", "This token has a really low volume on market cap! It has less than $10000 total value!"))
+    elif data.get("volume") < 100000:
+        return_obj["Price and Liquidity"] \
+            .append(("volume", "WARN", "This token has a medium low volume on market cap! It has less than $100000 total value!"))
+    else:
+        return_obj["Price and Liquidity"] \
+            .append(("volume", "OK", "This token has a high volume on market cap! It has more than $100000 total value!"))
+    
+    return return_obj
+
+

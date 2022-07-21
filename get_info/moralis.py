@@ -7,15 +7,17 @@ headers = {
 }
 
 chains = [
-            'eth', 'bsc', 'bsc testnet', '0x1', 'ropsten', 
-            '0x3', 'rinkeby', '0x4', 'goerli', '0x5', '0x38',
-            'kovan', '0x2a', 'polygon', '0x89', 'mumbai', '0x13881',
-            '0x61', 'avalanche','0xa86a', 'avalanche testnet', 
+    'eth', 'bsc', 'polygon', 'bsc testnet', '0x1', 'ropsten',
+    '0x3', 'rinkeby', '0x4', 'goerli', '0x5', '0x38',
+    'kovan', '0x2a', '0x89', 'mumbai', '0x13881',
+    '0x61', 'avalanche', '0xa86a', 'avalanche testnet',
             '0xa869', 'fantom', '0xfa', 'cronos', '0x19'
-        ]
+]
 
 # network, name, symbol, decimal, create_at
-def get_meta_data_erc20(token_address: str, chain_index = 0):
+
+
+def get_meta_data_erc20(token_address: str, chain_index=0):
     url = 'https://deep-index.moralis.io/api/v2/erc20/metadata'
     params = {
         'chain': chains[chain_index],
@@ -32,8 +34,10 @@ def get_meta_data_erc20(token_address: str, chain_index = 0):
         return get_meta_data_erc20(token_address, chain_index+1)
 
 # usdPrice
-def get_price_erc20(token_address: str, chain_index = 0):
-    url = 'https://deep-index.moralis.io/api/v2/erc20/%s/price' %token_address
+
+
+def get_price_erc20(token_address: str, chain_index=0):
+    url = 'https://deep-index.moralis.io/api/v2/erc20/%s/price' % token_address
     params = {
         'chain': chains[chain_index],
     }
@@ -44,8 +48,11 @@ def get_price_erc20(token_address: str, chain_index = 0):
         return None
 
 # erc20 token transactions
-def get_transactions_erc20(token_address: str, limit: int, chain:str=None):
-    url = 'https://deep-index.moralis.io/api/v2/erc20/%s/transfers' %token_address
+
+
+def get_transactions_erc20(token_address: str, limit: int, chain: str = None):
+    url = 'https://deep-index.moralis.io/api/v2/erc20/%s/transfers' % token_address
+
     def get_next_page(cursor: str):
         if cursor == None:
             params = {
@@ -63,12 +70,14 @@ def get_transactions_erc20(token_address: str, limit: int, chain:str=None):
     while cursor != None and len(transactions) < limit:
         cursor, transactions_next = get_next_page(cursor)
         transactions.extend(transactions_next)
-    
+
     return transactions
 
 # numbers of erc20 token transactions
-def get_numbers_of_transactions(token_address: str, chain: str=None):
-    url = 'https://deep-index.moralis.io/api/v2/%s/logs' %token_address
+
+
+def get_numbers_of_transactions(token_address: str, chain: str = None):
+    url = 'https://deep-index.moralis.io/api/v2/%s/logs' % token_address
     params = {
         'chain': chain,
         'limit': 1,
@@ -77,18 +86,21 @@ def get_numbers_of_transactions(token_address: str, chain: str=None):
     return response['total']
 
 # call to a contract funtion
+
+
 def call_contract_function(token_address: str, function_name: str,
-     contract_abi: str, chain_index = 0):
+                           contract_abi: str, chain_index=0):
     params = {
-        'chain' : chains[chain_index],
-        'function_name' : function_name
+        'chain': chains[chain_index],
+        'function_name': function_name
     }
     json_data = {
-        'abi' : contract_abi,
-        'params' : {}
+        'abi': contract_abi,
+        'params': {}
     }
-    url = 'https://deep-index.moralis.io/api/v2/%s/function' %token_address
-    response = requests.post(url=url, data=json_data, headers=headers, params=params).json()
+    url = 'https://deep-index.moralis.io/api/v2/%s/function' % token_address
+    response = requests.post(url=url, data=json_data,
+                             headers=headers, params=params).json()
     print(response)
     if response.get('message') is not None:
         return None
@@ -110,15 +122,16 @@ def get_liquidity_of_token(token: str):
     return (name, symbol, price_USD, price_BNB)
 
 # call to this function to retrieve from Moralis tokens metadata
+
+
 def get_moralis_metadata_erc20(token_address: str):
     metadata = get_meta_data_erc20(token_address)
     if metadata == None:
         return None
-    
+
     chain_index, name, symbol, decimal, create_at = metadata
     price = get_price_erc20(token_address, chain_index)
-    numbers_transaction = get_numbers_of_transactions(token_address, chains[chain_index])
-    
+    numbers_transaction = get_numbers_of_transactions(
+        token_address, chains[chain_index])
+
     return (chains[chain_index], name, symbol, decimal, create_at, price, numbers_transaction)
-
-
